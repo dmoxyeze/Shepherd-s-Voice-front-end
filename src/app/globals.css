@@ -10,17 +10,38 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-primary: #37591e; /*Dark green for headers, buttons */
+  --color-secondary: #a6ce11; /* Lime green for highlights, hover */
+  --color-accent1: #4a7c2b; /* Medium forest green (hover, borders) */
+  --color-accent2: #6b9c4a; /* Olive green (cards, buttons) */
+  --color-accent3: #8bb86e; /* Light sage green (highlights, disabled) */
+  --color-whiteWarm: #f5f5ec; /* Warm ivory (backgrounds) */
+  --color-whiteCool: #e8ece6; /* Grayish white (secondary backgrounds) */
 }
 
-@media (prefers-color-scheme: dark) {
+/* @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
   }
-}
+} */
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+h1,
+h2 {
+  @apply text-primary; /* Lime green for headings */
+}
+
+button {
+  @apply bg-accent2 text-white font-semibold py-2 px-4 rounded hover:bg-primary hover:text-secondary transition;
+}
+
+input,
+select {
+  @apply bg-whiteCool text-gray-500 p-2 rounded focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-300;
 }
