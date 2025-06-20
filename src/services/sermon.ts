@@ -1,5 +1,5 @@
 import { TPaginatedSermons, TSermon } from "@/types";
-import { apiRequest, Endpoints } from "./api";
+import { apiRequest, DataType, Endpoints } from "./api";
 
 const getAllSermons = async (query: string) => {
   return await apiRequest<TPaginatedSermons>(
@@ -9,7 +9,10 @@ const getAllSermons = async (query: string) => {
 };
 
 const getSermonById = async (id: string) => {
-  return await apiRequest<TSermon>("get", `/${Endpoints.sermon}/${id}`);
+  return await apiRequest<DataType<TSermon>>(
+    "get",
+    `/${Endpoints.sermon}/${id}`
+  );
 };
 
 export { getAllSermons, getSermonById };

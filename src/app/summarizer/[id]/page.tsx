@@ -3,17 +3,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FiArrowLeft, FiLoader, FiCalendar, FiUser } from "react-icons/fi";
+import { TSermon } from "@/types";
+import { getSermonById } from "@/services";
 
 export default function Summarizer() {
   const { id } = useParams();
   const router = useRouter();
-  const [sermon, setSermon] = useState<{
-    title: string;
-    text: string;
-    date?: string;
-    speaker?: string;
-    scripture?: string;
-  } | null>(null);
+  const [sermon, setSermon] = useState<TSermon | null>(null);
   const [summary, setSummary] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -23,17 +19,17 @@ export default function Summarizer() {
     const fetchSermon = async () => {
       try {
         setIsLoading(true);
-        // Replace with actual API call
-        const mockSermon = {
-          title: "The Power of Faith",
-          text: "Faith is the assurance of things hoped for, the conviction of things not seen. Through faith we understand that the universe was created by the word of God... True faith transforms our lives and gives us strength to overcome challenges...",
-          date: "2023-11-12",
-          speaker: "Pastor John Smith",
-        };
-        setSermon(mockSermon);
+        setError("");
+
+        if (!id) {
+          throw new Error("Sermon ID is required");
+        }
+
+        const { data } = await getSermonById(id as string);
+        setSermon(data.data);
       } catch (err) {
-        setError("Failed to load sermon");
-        console.error(err);
+        setError(err instanceof Error ? err.message : "Failed to load sermon");
+        console.error("Fetch sermon error:", err);
       } finally {
         setIsLoading(false);
       }
@@ -50,22 +46,22 @@ export default function Summarizer() {
       // Replace with actual summarization API call
       await new Promise((resolve) => setTimeout(resolve, 1500)); // Simulate API delay
 
-      const mockSummary = `
-        <h3 class="font-bold text-lg mb-2">Key Points:</h3>
-        <ul class="list-disc pl-5 space-y-2">
-          <li>Faith provides assurance and conviction beyond what we can see</li>
-          <li>Genuine faith transforms our lives and perspective</li>
-          <li>Through faith we understand God's creation</li>
-          <li>Faith gives strength to overcome life's challenges</li>
-        </ul>
-        <h3 class="font-bold text-lg mt-4 mb-2">Main Theme:</h3>
-        <p>True biblical faith changes how we live and provides strength during difficulties.</p>
-      `;
+      // const mockSummary = `
+      //   <h3 class="font-bold text-lg mb-2">Key Points:</h3>
+      //   <ul class="list-disc pl-5 space-y-2">
+      //     <li>Faith provides assurance and conviction beyond what we can see</li>
+      //     <li>Genuine faith transforms our lives and perspective</li>
+      //     <li>Through faith we understand God's creation</li>
+      //     <li>Faith gives strength to overcome life's challenges</li>
+      //   </ul>
+      //   <h3 class="font-bold text-lg mt-4 mb-2">Main Theme:</h3>
+      //   <p>True biblical faith changes how we live and provides strength during difficulties.</p>
+      // `;
 
-      setSummary(mockSummary);
+      setSummary(sermon?.full_text || "");
     } catch (err) {
       setError("Failed to generate summary");
-      console.error(err);
+      console.error("Summarization error:", err);
     } finally {
       setIsSummarizing(false);
     }
@@ -114,18 +110,18 @@ export default function Summarizer() {
 
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
-              {sermon.title}
+              {sermon.topic}
             </h1>
             <div className="flex flex-wrap gap-4 text-sm text-gray-600 mb-4">
-              {sermon.speaker && (
+              {sermon.preacher && (
                 <span className="flex items-center">
-                  <FiUser className="mr-1.5" /> {sermon.speaker}
+                  <FiUser className="mr-1.5" /> {sermon.preacher}
                 </span>
               )}
-              {sermon.date && (
+              {sermon.date_preached && (
                 <span className="flex items-center">
                   <FiCalendar className="mr-1.5" />
-                  {new Date(sermon.date).toLocaleDateString("en-US", {
+                  {new Date(sermon.date_preached).toLocaleDateString("en-US", {
                     year: "numeric",
                     month: "long",
                     day: "numeric",
