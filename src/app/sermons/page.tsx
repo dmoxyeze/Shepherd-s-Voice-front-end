@@ -1,92 +1,87 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { FiCalendar, FiUser } from "react-icons/fi";
-
-const sermonsData: Sermon[] = [
-  {
-    id: 1,
-    title: "The Power of Faith",
-    date: "2023-11-12",
-    themes: ["faith", "trust", "perseverance"],
-    speaker: "Apostle O.T. Jacobs",
-  },
-  {
-    id: 2,
-    title: "Love Your Neighbor",
-    date: "2023-11-05",
-    themes: ["love", "compassion", "community"],
-    speaker: "Apostle O.T. Jacobs",
-  },
-  {
-    id: 3,
-    title: "Finding Peace in Chaos",
-    date: "2023-10-29",
-    themes: ["peace", "anxiety", "trust"],
-    speaker: "Apostle O.T. Jacobs",
-  },
-  {
-    id: 4,
-    title: "The Armor of God",
-    date: "2023-10-22",
-    themes: ["spiritual warfare", "protection", "truth"],
-    speaker: "Apostle O.T. Jacobs",
-  },
-  {
-    id: 5,
-    title: "The Good Shepherd",
-    date: "2023-10-15",
-    themes: ["guidance", "protection", "salvation"],
-    speaker: "Apostle O.T. Jacobs",
-  },
-];
-interface Sermon {
-  id: number;
-  title: string;
-  date: string;
-  themes: string[];
-  speaker: string;
-}
+import {
+  FiCalendar,
+  FiUser,
+  FiChevronLeft,
+  FiChevronRight,
+} from "react-icons/fi";
+import { TSermon } from "@/types";
+import { getAllSermons } from "@/services";
+import { useDebounce } from "@/hooks";
 
 export default function SermonList() {
-  const [sermons, setSermons] = useState<Sermon[]>([]);
-  const [filteredSermons, setFilteredSermons] = useState<Sermon[]>([]);
-  const [search, setSearch] = useState("");
+  const [sermons, setSermons] = useState<TSermon[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState("");
+  const debouncedSearch = useDebounce(searchInput, 500);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
+  });
   const searchParams = useSearchParams();
   const moduleName = searchParams.get("module");
   const router = useRouter();
 
-  useEffect(() => {
-    // Simulate API fetch
-    const timer = setTimeout(() => {
-      setSermons(sermonsData);
-      setFilteredSermons(sermonsData);
-      setIsLoading(false);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
+  const fetchSermons = async (page: number, search = "") => {
+    setIsLoading(true);
+    setError(null);
 
-  useEffect(() => {
-    if (search.trim() === "") {
-      setFilteredSermons(sermons);
-    } else {
-      const filtered = sermons.filter(
-        (sermon) =>
-          sermon.themes.some((theme) =>
-            theme.toLowerCase().includes(search.toLowerCase())
-          ) || sermon.title.toLowerCase().includes(search.toLowerCase())
-      );
-      setFilteredSermons(filtered);
+    try {
+      const query = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.limit.toString(),
+        search: search,
+      }).toString();
+
+      const response = await getAllSermons(query);
+
+      if (!response.data) {
+        throw new Error("Invalid response format");
+      }
+
+      setSermons(response.data.data || []);
+      setPagination({
+        page: response.data.pagination?.page || 1,
+        limit: response.data.pagination?.limit || pagination.limit,
+        total: response.data.pagination?.total || 0,
+        totalPages: response.data.pagination?.totalPages || 1,
+      });
+    } catch (err) {
+      setError("Failed to load sermons. Please try again later.");
+      console.error("Fetch sermons error:", err);
+    } finally {
+      setIsLoading(false);
     }
-  }, [search, sermons]);
+  };
+
+  // Handle initial load and debounced search
+  useEffect(() => {
+    fetchSermons(1, debouncedSearch);
+  }, [debouncedSearch]);
+
+  // Handle page changes
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      fetchSermons(newPage, debouncedSearch);
+    }
+  };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
+    try {
+      return new Date(dateString).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch (e: unknown) {
+      console.error(`Invalid date format: ${dateString}`, e);
+      return "Invalid date";
+    }
   };
 
   return (
@@ -95,26 +90,25 @@ export default function SermonList() {
         <h1 className="text-3xl font-bold text-primary dark:text-secondary mb-2">
           Sermon Library
         </h1>
-        <p className="text-gray-600 ">
+        <p className="text-gray-600">
           Browse and select sermons to use with the{" "}
           {moduleName?.replace("-", " ")} tool
         </p>
       </div>
 
       <div className="mb-8 relative max-w-md">
-        {/* <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <FiSearch className="text-gray-400" />
-        </div> */}
         <input
           type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 sm:text-sm"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="block w-full pl-4 pr-3 py-2 border border-gray-300 rounded-md leading-5 sm:text-sm"
           placeholder="Search by theme or title..."
         />
       </div>
 
-      {isLoading ? (
+      {error ? (
+        <div className="text-center py-12 text-red-500">{error}</div>
+      ) : isLoading ? (
         <div className="space-y-4">
           {[...Array(3)].map((_, i) => (
             <div
@@ -123,51 +117,118 @@ export default function SermonList() {
             ></div>
           ))}
         </div>
-      ) : filteredSermons.length === 0 ? (
+      ) : sermons.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-400">
-            No sermons found matching your search criteria
+            {debouncedSearch
+              ? "No sermons found matching your search criteria"
+              : "No sermons available"}
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredSermons.map((sermon) => (
-            <div
-              key={sermon.id}
-              onClick={() => router.push(`/${moduleName}/${sermon.id}`)}
-              className="bg-whiteWarm rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden cursor-pointer border border-gray-200"
-            >
-              <div className="p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
-                  {sermon.title}
-                </h2>
+        <>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {sermons.map((sermon) => (
+              <div
+                key={sermon.id}
+                onClick={() => router.push(`/${moduleName}/${sermon.id}`)}
+                className="bg-whiteWarm rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden cursor-pointer border border-gray-200"
+              >
+                <div className="p-6">
+                  <h2 className="text-xl font-semibold text-gray-900 mb-2 line-clamp-2">
+                    {sermon.topic || "Untitled Sermon"}
+                  </h2>
 
-                <div className="flex items-center text-sm text-gray-400  mb-2">
-                  <FiUser className="mr-1.5" />
-                  <span>{sermon.speaker}</span>
-                </div>
-
-                <div className="flex space-x-4 text-sm mb-4">
-                  <div className="flex items-center text-gray-400 ">
-                    <FiCalendar className="mr-1.5" />
-                    <span>{formatDate(sermon.date)}</span>
+                  <div className="flex items-center text-sm text-gray-400 mb-2">
+                    <FiUser className="mr-1.5" />
+                    <span>{sermon.preacher || "Unknown Preacher"}</span>
                   </div>
-                </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {sermon.themes.map((theme) => (
-                    <span
-                      key={theme}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent2 text-white"
-                    >
-                      {theme}
-                    </span>
-                  ))}
+                  <div className="flex space-x-4 text-sm mb-4">
+                    <div className="flex items-center text-gray-400">
+                      <FiCalendar className="mr-1.5" />
+                      <span>{formatDate(sermon.date_preached)}</span>
+                    </div>
+                  </div>
+
+                  {Array.isArray(sermon.themes) && sermon.themes.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {sermon.themes.map((theme) => (
+                        <span
+                          key={theme}
+                          className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent2 text-white"
+                        >
+                          {theme}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
+            ))}
+          </div>
+
+          {pagination.totalPages > 1 && (
+            <div className="flex justify-center mt-8">
+              <nav className="inline-flex rounded-md shadow-sm -space-x-px">
+                <button
+                  onClick={() => handlePageChange(pagination.page - 1)}
+                  disabled={pagination.page === 1}
+                  className={`px-3 py-2 rounded-l-md border ${
+                    pagination.page === 1
+                      ? "bg-gray-100 text-gray-400 border-gray-300"
+                      : "bg-white text-gray-500 hover:bg-gray-50 border-gray-300"
+                  }`}
+                >
+                  <FiChevronLeft className="h-5 w-5" />
+                </button>
+
+                {Array.from(
+                  { length: Math.min(5, pagination.totalPages) },
+                  (_, i) => {
+                    let pageNum;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (pagination.page <= 3) {
+                      pageNum = i + 1;
+                    } else if (pagination.page >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = pagination.page - 2 + i;
+                    }
+
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => handlePageChange(pageNum)}
+                        disabled={pagination.page === pageNum}
+                        className={`px-4 py-2 border ${
+                          pagination.page === pageNum
+                            ? "bg-primary text-white border-primary"
+                            : "bg-white text-gray-500 hover:bg-gray-50 border-gray-300"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  }
+                )}
+
+                <button
+                  onClick={() => handlePageChange(pagination.page + 1)}
+                  disabled={pagination.page === pagination.totalPages}
+                  className={`px-3 py-2 rounded-r-md border ${
+                    pagination.page === pagination.totalPages
+                      ? "bg-gray-100 text-gray-400 border-gray-300"
+                      : "bg-white text-gray-500 hover:bg-gray-50 border-gray-300"
+                  }`}
+                >
+                  <FiChevronRight className="h-5 w-5" />
+                </button>
+              </nav>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
     </div>
   );
